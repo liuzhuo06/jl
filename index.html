@@ -68,6 +68,7 @@
             width: 100%;
             height: auto;
             aspect-ratio: 600/400;
+            cursor: none;
         }
         .controls {
             display: flex;
@@ -83,7 +84,7 @@
             border: none;
             border-radius: 30px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             letter-spacing: 0.5px;
             touch-action: manipulation;
             min-height: 48px;
@@ -112,6 +113,15 @@
             transform: scale(0.94);
             background: #d03a52;
         }
+        .touch-hint {
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 6px;
+        }
+        .touch-hint span {
+            color: #888;
+        }
         .legend {
             display: flex;
             justify-content: center;
@@ -131,16 +141,6 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-        }
-        /* 触屏提示（首次显示） */
-        .touch-hint {
-            color: #666;
-            font-size: 12px;
-            text-align: center;
-            margin-top: 6px;
-        }
-        .touch-hint span {
-            color: #888;
         }
         @media (max-width: 420px) {
             .game-wrapper { padding: 10px; margin: 5px; }
@@ -173,7 +173,7 @@
         </div>
 
         <div class="touch-hint">
-            <span>👆 左右滑动控制挡板 &nbsp;|&nbsp; 点击按钮操作</span>
+            <span>👆 在画面上滑动控制挡板 &nbsp;|&nbsp; 点击按钮操作</span>
         </div>
 
         <div class="legend">
@@ -195,9 +195,9 @@
         const pauseBtn = document.getElementById('pauseBtn');
         const resetBtn = document.getElementById('resetBtn');
 
-        // ===== 画布尺寸适配 =====
-        const CANVAS_WIDTH = 600;
-        const CANVAS_HEIGHT = 400;
+        // ===== 固定画布尺寸 =====
+        const CW = 600;
+        const CH = 400;
 
         // ===== 常量 =====
         const PADDLE_WIDTH = 80;
@@ -221,8 +221,8 @@
 
         // ===== 游戏对象 =====
         const paddle = {
-            x: (CANVAS_WIDTH - PADDLE_WIDTH) / 2,
-            y: CANVAS_HEIGHT - 30,
+            x: (CW - PADDLE_WIDTH) / 2,
+            y: CH - 30,
             width: PADDLE_WIDTH,
             height: PADDLE_HEIGHT,
             dx: 6,
@@ -230,8 +230,8 @@
         };
 
         const mainBall = {
-            x: CANVAS_WIDTH / 2,
-            y: CANVAS_HEIGHT - 50,
+            x: CW / 2,
+            y: CH - 50,
             dx: 3.5,
             dy: -3.5,
             radius: BALL_RADIUS,
@@ -270,92 +270,140 @@
         };
 
         // ============================================================
-        //  🖐️ 触屏控制
+        //  🖐️ 触屏控制（修复版）
         // ============================================================
-        let touchX = null;
+
         let isTouching = false;
+        let touchId = null; // 用于多点触控，只跟踪第一个触点
 
-        function handleTouchStart(e) {
-            e.preventDefault();
+        /**
+         * 获取画布上触摸点的 X 坐标（转换为游戏坐标系 0-600）
+         */
+        function getCanvasX(clientX) {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = CANVAS_WIDTH / rect.width;
-            const touch = e.touches[0];
-            const canvasX = (touch.clientX - rect.left) * scaleX;
-            touchX = canvasX;
-            isTouching = true;
-            // 直接移动到触摸位置
-            movePaddleTo(touchX);
+            // 计算实际显示区域与逻辑尺寸的比例
+            const scaleX = CW / rect.width;
+            let x = (clientX - rect.left) * scaleX;
+            // 边界裁剪，防止超出
+            return Math.max(0, Math.min(CW, x));
         }
 
-        function handleTouchMove(e) {
-            e.preventDefault();
-            if (!isTouching) return;
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = CANVAS_WIDTH / rect.width;
-            const touch = e.touches[0];
-            const canvasX = (touch.clientX - rect.left) * scaleX;
-            touchX = canvasX;
-            movePaddleTo(touchX);
-        }
-
-        function handleTouchEnd(e) {
-            e.preventDefault();
-            isTouching = false;
-            touchX = null;
-        }
-
-        function handleTouchCancel(e) {
-            e.preventDefault();
-            isTouching = false;
-            touchX = null;
-        }
-
+        /**
+         * 移动挡板到指定 X 位置（触摸点或鼠标位置）
+         */
         function movePaddleTo(targetX) {
+            if (gameOver || isPaused) return;
             const halfWidth = paddle.width / 2;
             let newX = targetX - halfWidth;
-            newX = Math.max(0, Math.min(CANVAS_WIDTH - paddle.width, newX));
+            newX = Math.max(0, Math.min(CW - paddle.width, newX));
             paddle.x = newX;
         }
 
-        // ===== 鼠标支持（PC 调试） =====
+        // ----- 触屏事件 -----
+        function onTouchStart(e) {
+            e.preventDefault();
+            if (gameOver || isPaused) return;
+            const touch = e.touches[0];
+            if (!touch) return;
+            touchId = touch.identifier;
+            isTouching = true;
+            const canvasX = getCanvasX(touch.clientX);
+            movePaddleTo(canvasX);
+        }
+
+        function onTouchMove(e) {
+            e.preventDefault();
+            if (!isTouching) return;
+            // 找到我们正在跟踪的那个触点
+            let touch = null;
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === touchId) {
+                    touch = e.touches[i];
+                    break;
+                }
+            }
+            // 如果没找到（比如被其他手指替代），就用第一个
+            if (!touch) {
+                touch = e.touches[0];
+                touchId = touch ? touch.identifier : null;
+            }
+            if (!touch) return;
+            const canvasX = getCanvasX(touch.clientX);
+            movePaddleTo(canvasX);
+        }
+
+        function onTouchEnd(e) {
+            e.preventDefault();
+            // 检查我们跟踪的手指是否还在屏幕上
+            let stillThere = false;
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === touchId) {
+                    stillThere = true;
+                    break;
+                }
+            }
+            if (!stillThere) {
+                isTouching = false;
+                touchId = null;
+            }
+        }
+
+        function onTouchCancel(e) {
+            e.preventDefault();
+            isTouching = false;
+            touchId = null;
+        }
+
+        // ----- 鼠标支持（PC 调试，与触屏不冲突）-----
         let isMouseDown = false;
 
-        function handleMouseDown(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = CANVAS_WIDTH / rect.width;
-            const canvasX = (e.clientX - rect.left) * scaleX;
+        function onMouseDown(e) {
+            if (gameOver || isPaused) return;
             isMouseDown = true;
-            movePaddleTo(canvasX);
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = CW / rect.width;
+            const canvasX = (e.clientX - rect.left) * scaleX;
+            movePaddleTo(Math.max(0, Math.min(CW, canvasX)));
         }
 
-        function handleMouseMove(e) {
+        function onMouseMove(e) {
             if (!isMouseDown) return;
             const rect = canvas.getBoundingClientRect();
-            const scaleX = CANVAS_WIDTH / rect.width;
+            const scaleX = CW / rect.width;
             const canvasX = (e.clientX - rect.left) * scaleX;
-            movePaddleTo(canvasX);
+            movePaddleTo(Math.max(0, Math.min(CW, canvasX)));
         }
 
-        function handleMouseUp(e) {
+        function onMouseUp(e) {
             isMouseDown = false;
         }
 
-        // ===== 注册触屏/鼠标事件 =====
-        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-        canvas.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+        function onMouseLeave(e) {
+            isMouseDown = false;
+        }
 
-        canvas.addEventListener('mousedown', handleMouseDown);
-        canvas.addEventListener('mousemove', handleMouseMove);
-        canvas.addEventListener('mouseup', handleMouseUp);
-        canvas.addEventListener('mouseleave', handleMouseUp);
+        // ===== 注册事件 =====
+        // 触屏
+        canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+        canvas.addEventListener('touchend', onTouchEnd, { passive: false });
+        canvas.addEventListener('touchcancel', onTouchCancel, { passive: false });
 
-        // ===== 键盘支持（调试用） =====
+        // 鼠标
+        canvas.addEventListener('mousedown', onMouseDown);
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mouseup', onMouseUp);
+        canvas.addEventListener('mouseleave', onMouseLeave);
+
+        // 阻止页面滚动/缩放
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
+
+        // ===== 键盘支持（仅调试） =====
         let rightPressed = false;
         let leftPressed = false;
 
-        document.addEventListener('keydown', e => {
+        document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowRight' || e.key === 'Right') {
                 rightPressed = true;
                 e.preventDefault();
@@ -370,7 +418,7 @@
             }
         });
 
-        document.addEventListener('keyup', e => {
+        document.addEventListener('keyup', (e) => {
             if (e.key === 'ArrowRight' || e.key === 'Right') {
                 rightPressed = false;
                 e.preventDefault();
@@ -380,8 +428,15 @@
             }
         });
 
+        // ===== 按钮事件 =====
+        pauseBtn.addEventListener('click', togglePause);
+        resetBtn.addEventListener('click', resetGame);
+        // 防止按钮点击时触发画布事件
+        pauseBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+        resetBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+
         // ============================================================
-        //  游戏逻辑（与之前相同）
+        //  游戏逻辑
         // ============================================================
 
         function initBricks() {
@@ -413,12 +468,14 @@
         }
 
         function resetGame() {
-            paddle.x = (CANVAS_WIDTH - PADDLE_WIDTH) / 2;
+            // 重置挡板
+            paddle.x = (CW - PADDLE_WIDTH) / 2;
             paddle.width = PADDLE_WIDTH;
             paddle.targetWidth = PADDLE_WIDTH;
 
-            mainBall.x = CANVAS_WIDTH / 2;
-            mainBall.y = CANVAS_HEIGHT - 50;
+            // 重置主球
+            mainBall.x = CW / 2;
+            mainBall.y = CH - 50;
             mainBall.dx = 3.5 * (Math.random() > 0.5 ? 1 : -1);
             mainBall.dy = -3.5;
             mainBall.radius = BALL_RADIUS;
@@ -427,6 +484,10 @@
 
             balls = [];
             powerups = [];
+            // 清除所有计时器
+            for (const key in powerupTimers) {
+                clearTimeout(powerupTimers[key]);
+            }
             powerupTimers = {};
 
             initBricks();
@@ -444,6 +505,8 @@
 
             rightPressed = false;
             leftPressed = false;
+            isTouching = false;
+            isMouseDown = false;
 
             if (!animationId) {
                 gameLoop();
@@ -496,16 +559,16 @@
                 case 'WIDE_PADDLE':
                     paddle.targetWidth = PADDLE_WIDTH * 1.6;
                     paddle.width = paddle.targetWidth;
-                    if (paddle.x + paddle.width > CANVAS_WIDTH) {
-                        paddle.x = CANVAS_WIDTH - paddle.width;
+                    if (paddle.x + paddle.width > CW) {
+                        paddle.x = CW - paddle.width;
                     }
                     powerupDisplay.textContent = `${emoji} ${label} ${duration/1000}s`;
                     powerupDisplay.style.color = POWERUP_COLORS[type];
                     powerupTimers[type] = setTimeout(() => {
                         paddle.targetWidth = PADDLE_WIDTH;
                         paddle.width = PADDLE_WIDTH;
-                        if (paddle.x + paddle.width > CANVAS_WIDTH) {
-                            paddle.x = CANVAS_WIDTH - paddle.width;
+                        if (paddle.x + paddle.width > CW) {
+                            paddle.x = CW - paddle.width;
                         }
                         powerupDisplay.textContent = '✨ 道具: 无';
                         powerupDisplay.style.color = '#aaa';
@@ -698,14 +761,14 @@
                     continue;
                 }
 
-                if (p.y > CANVAS_HEIGHT) {
+                if (p.y > CH) {
                     powerups.splice(i, 1);
                 }
             }
         }
 
         function draw() {
-            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.clearRect(0, 0, CW, CH);
 
             // --- 砖块 ---
             for (let c = 0; c < BRICK_COLS; c++) {
@@ -807,42 +870,42 @@
             // --- 暂停遮罩 ---
             if (isPaused && !gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                ctx.fillRect(0, 0, CW, CH);
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 32px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('⏸ 暂停中', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
+                ctx.fillText('⏸ 暂停中', CW / 2, CH / 2);
                 ctx.font = '16px Arial';
                 ctx.fillStyle = '#aaa';
-                ctx.fillText('点击「继续」恢复游戏', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 48);
+                ctx.fillText('点击「继续」恢复游戏', CW / 2, CH / 2 + 48);
             }
 
             // --- 游戏结束遮罩 ---
             if (gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.65)';
-                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                ctx.fillRect(0, 0, CW, CH);
                 ctx.fillStyle = '#e94560';
                 ctx.font = 'bold 34px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 const isWin = score === BRICK_ROWS * BRICK_COLS;
-                ctx.fillText(isWin ? '🎉 恭喜通关！' : '💔 游戏结束', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 12);
+                ctx.fillText(isWin ? '🎉 恭喜通关！' : '💔 游戏结束', CW / 2, CH / 2 - 12);
                 ctx.fillStyle = '#ccc';
                 ctx.font = '18px Arial';
-                ctx.fillText('得分: ' + score + ' 分', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 44);
+                ctx.fillText('得分: ' + score + ' 分', CW / 2, CH / 2 + 44);
                 ctx.fillStyle = '#888';
                 ctx.font = '15px Arial';
-                ctx.fillText('点击「重新开始」再来一局', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 84);
+                ctx.fillText('点击「重新开始」再来一局', CW / 2, CH / 2 + 84);
             }
         }
 
         function update() {
             if (isPaused || gameOver) return;
 
-            // 键盘控制（仅在非触摸时有效）
+            // 键盘控制（仅在非触摸/鼠标拖拽时生效）
             if (!isTouching && !isMouseDown) {
-                if (rightPressed && paddle.x < CANVAS_WIDTH - paddle.width) {
+                if (rightPressed && paddle.x < CW - paddle.width) {
                     paddle.x += paddle.dx;
                 }
                 if (leftPressed && paddle.x > 0) {
@@ -873,9 +936,64 @@
                 b.x += b.dx;
                 b.y += b.dy;
 
-                if (b.x + b.radius > CANVAS_WIDTH || b.x - b.radius < 0) b.dx = -b.dx;
+                if (b.x + b.radius > CW || b.x - b.radius < 0) b.dx = -b.dx;
                 if (b.y - b.radius < 0) b.dy = -b.dy;
 
                 if (b.dy > 0 &&
                     b.y + b.radius > paddle.y &&
-                    b.y + b.radius < paddle
+                    b.y + b.radius < paddle.y + paddle.height + 4 &&
+                    b.x > paddle.x && b.x < paddle.x + paddle.width) {
+                    const hitPos = (b.x - paddle.x) / paddle.width;
+                    b.dx = (hitPos - 0.5) * 7;
+                    if (Math.abs(b.dx) < 1.2) b.dx = 1.2 * (b.dx > 0 ? 1 : -1);
+                    b.dy = -Math.abs(b.dy) - 0.2;
+                    const maxSpeed = 6.5;
+                    const currentSpeed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+                    if (currentSpeed > maxSpeed) {
+                        b.dx = (b.dx / currentSpeed) * maxSpeed;
+                        b.dy = (b.dy / currentSpeed) * maxSpeed;
+                    }
+                }
+
+                if (b.y + b.radius > CH) {
+                    if (b === mainBall) {
+                        gameOver = true;
+                        statusDisplay.textContent = '💔 游戏结束';
+                        statusDisplay.style.color = '#e94560';
+                        pauseBtn.textContent = '⏸ 暂停';
+                        pauseBtn.classList.remove('paused');
+                        if (animationId) {
+                            cancelAnimationFrame(animationId);
+                            animationId = null;
+                        }
+                        return;
+                    } else {
+                        balls.splice(balls.indexOf(b), 1);
+                        continue;
+                    }
+                }
+            }
+
+            collisionDetection();
+            updatePowerups();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        // ===== 窗口失焦暂停 =====
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && !isPaused && !gameOver) {
+                togglePause();
+            }
+        });
+
+        // ===== 启动 =====
+        initBricks();
+        gameLoop();
+    </script>
+</body>
+</html>
