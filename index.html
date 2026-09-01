@@ -2,12 +2,16 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>打砖块 - 道具版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>打砖块 - 触屏版</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         body {
             display: flex;
@@ -16,117 +20,139 @@
             min-height: 100vh;
             background: #1a1a2e;
             font-family: 'Arial', sans-serif;
-            user-select: none;
+            touch-action: none;
+            overflow: hidden;
         }
         .game-wrapper {
             background: #16213e;
-            padding: 25px 30px 30px;
+            padding: 15px 15px 20px;
             border-radius: 16px;
             border: 2px solid #e94560;
             box-shadow: 0 0 40px rgba(233, 69, 96, 0.2);
+            width: 100%;
+            max-width: 500px;
+            margin: 10px;
         }
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             color: #eee;
-            font-size: 16px;
+            font-size: 14px;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 4px;
         }
         .header .score-label span {
             color: #e94560;
             font-weight: bold;
-            font-size: 22px;
+            font-size: 18px;
         }
         .header .status {
             color: #f5a623;
-            font-size: 15px;
+            font-size: 13px;
             font-weight: bold;
-            min-width: 80px;
+            min-width: 70px;
             text-align: right;
         }
         .header .powerup-indicator {
-            font-size: 14px;
+            font-size: 13px;
             color: #6ab04c;
-            min-width: 120px;
+            min-width: 100px;
         }
         canvas {
             display: block;
             background: #0f1a30;
             border-radius: 8px;
-            cursor: none;
-            width: 600px;
-            height: 400px;
+            touch-action: none;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 600/400;
         }
         .controls {
             display: flex;
             justify-content: center;
-            gap: 16px;
-            margin-top: 18px;
+            gap: 12px;
+            margin-top: 12px;
             flex-wrap: wrap;
         }
         .controls button {
-            padding: 10px 34px;
-            font-size: 16px;
+            padding: 10px 28px;
+            font-size: 15px;
             font-weight: bold;
             border: none;
             border-radius: 30px;
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.2s ease;
             letter-spacing: 0.5px;
+            touch-action: manipulation;
+            min-height: 48px;
+            flex: 1;
+            max-width: 160px;
         }
         .btn-pause {
             background: #f5a623;
             color: #1a1a2e;
         }
-        .btn-pause:hover {
-            background: #f7c35a;
-            transform: scale(1.04);
-            box-shadow: 0 0 20px rgba(245, 166, 35, 0.4);
+        .btn-pause:active {
+            transform: scale(0.94);
+            background: #e09515;
         }
         .btn-pause.paused {
             background: #6ab04c;
         }
-        .btn-pause.paused:hover {
-            background: #82c96a;
+        .btn-pause.paused:active {
+            background: #5a9e3e;
         }
         .btn-reset {
             background: #e94560;
             color: #fff;
         }
-        .btn-reset:hover {
-            background: #f05a75;
-            transform: scale(1.04);
-            box-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+        .btn-reset:active {
+            transform: scale(0.94);
+            background: #d03a52;
         }
         .legend {
             display: flex;
             justify-content: center;
-            gap: 18px;
-            margin-top: 12px;
-            color: #aaa;
-            font-size: 13px;
+            gap: 12px;
+            margin-top: 10px;
+            color: #888;
+            font-size: 11px;
             flex-wrap: wrap;
         }
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 3px;
         }
         .legend-item .dot {
             display: inline-block;
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
         }
-        @media (max-width: 660px) {
-            .game-wrapper { padding: 15px; }
-            canvas { width: 100%; height: auto; aspect-ratio: 600/400; }
-            .controls button { padding: 8px 20px; font-size: 14px; }
-            .header { font-size: 14px; }
-            .legend { font-size: 11px; gap: 10px; }
+        /* 触屏提示（首次显示） */
+        .touch-hint {
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 6px;
+        }
+        .touch-hint span {
+            color: #888;
+        }
+        @media (max-width: 420px) {
+            .game-wrapper { padding: 10px; margin: 5px; }
+            .header { font-size: 12px; }
+            .header .score-label span { font-size: 16px; }
+            .controls button { padding: 8px 16px; font-size: 13px; min-height: 40px; }
+            .legend { font-size: 10px; gap: 8px; }
+        }
+        @media (min-width: 600px) {
+            .game-wrapper { padding: 25px 30px 30px; }
+            .header { font-size: 16px; }
+            .controls button { padding: 10px 34px; font-size: 16px; min-height: auto; }
         }
     </style>
 </head>
@@ -134,7 +160,7 @@
 
     <div class="game-wrapper">
         <div class="header">
-            <div class="score-label">🏆 得分: <span id="score">0</span></div>
+            <div class="score-label">🏆 <span id="score">0</span></div>
             <div class="powerup-indicator" id="powerupDisplay">✨ 道具: 无</div>
             <div class="status" id="statusDisplay">▶ 运行中</div>
         </div>
@@ -146,11 +172,15 @@
             <button class="btn-reset" id="resetBtn">🔄 重新开始</button>
         </div>
 
+        <div class="touch-hint">
+            <span>👆 左右滑动控制挡板 &nbsp;|&nbsp; 点击按钮操作</span>
+        </div>
+
         <div class="legend">
-            <span class="legend-item"><span class="dot" style="background:#f5a623;">⬤</span> 挡板加宽</span>
-            <span class="legend-item"><span class="dot" style="background:#6ab04c;">⬤</span> 球变大</span>
-            <span class="legend-item"><span class="dot" style="background:#3498db;">⬤</span> 分裂多球</span>
-            <span class="legend-item"><span class="dot" style="background:#e94560;">⬤</span> 火焰穿透</span>
+            <span class="legend-item"><span class="dot" style="background:#f5a623;">⬤</span> 加宽</span>
+            <span class="legend-item"><span class="dot" style="background:#6ab04c;">⬤</span> 大球</span>
+            <span class="legend-item"><span class="dot" style="background:#3498db;">⬤</span> 分裂</span>
+            <span class="legend-item"><span class="dot" style="background:#e94560;">⬤</span> 火焰</span>
             <span class="legend-item"><span class="dot" style="background:#9b59b6;">⬤</span> 减速</span>
         </div>
     </div>
@@ -164,6 +194,10 @@
         const powerupDisplay = document.getElementById('powerupDisplay');
         const pauseBtn = document.getElementById('pauseBtn');
         const resetBtn = document.getElementById('resetBtn');
+
+        // ===== 画布尺寸适配 =====
+        const CANVAS_WIDTH = 600;
+        const CANVAS_HEIGHT = 400;
 
         // ===== 常量 =====
         const PADDLE_WIDTH = 80;
@@ -184,13 +218,11 @@
         let isPaused = false;
         let gameOver = false;
         let animationId = null;
-        let rightPressed = false;
-        let leftPressed = false;
 
         // ===== 游戏对象 =====
         const paddle = {
-            x: (canvas.width - PADDLE_WIDTH) / 2,
-            y: canvas.height - 30,
+            x: (CANVAS_WIDTH - PADDLE_WIDTH) / 2,
+            y: CANVAS_HEIGHT - 30,
             width: PADDLE_WIDTH,
             height: PADDLE_HEIGHT,
             dx: 6,
@@ -198,8 +230,8 @@
         };
 
         const mainBall = {
-            x: canvas.width / 2,
-            y: canvas.height - 50,
+            x: CANVAS_WIDTH / 2,
+            y: CANVAS_HEIGHT - 50,
             dx: 3.5,
             dy: -3.5,
             radius: BALL_RADIUS,
@@ -212,9 +244,7 @@
         let powerups = [];
         let powerupTimers = {};
 
-        // ============================================================
-        //  🎨 新道具图标配置（用 Emoji + 颜色 + 文字标签）
-        // ============================================================
+        // ===== 道具配置 =====
         const POWERUP_TYPES = {
             WIDE_PADDLE: { label: '挡板加宽', emoji: '📐', color: '#f5a623', duration: 5000 },
             BIG_BALL: { label: '球变大', emoji: '⚽', color: '#6ab04c', duration: 5000 },
@@ -239,7 +269,121 @@
             'SLOW_BALL': '🐌'
         };
 
-        // ===== 初始化砖块 =====
+        // ============================================================
+        //  🖐️ 触屏控制
+        // ============================================================
+        let touchX = null;
+        let isTouching = false;
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = CANVAS_WIDTH / rect.width;
+            const touch = e.touches[0];
+            const canvasX = (touch.clientX - rect.left) * scaleX;
+            touchX = canvasX;
+            isTouching = true;
+            // 直接移动到触摸位置
+            movePaddleTo(touchX);
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!isTouching) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = CANVAS_WIDTH / rect.width;
+            const touch = e.touches[0];
+            const canvasX = (touch.clientX - rect.left) * scaleX;
+            touchX = canvasX;
+            movePaddleTo(touchX);
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            isTouching = false;
+            touchX = null;
+        }
+
+        function handleTouchCancel(e) {
+            e.preventDefault();
+            isTouching = false;
+            touchX = null;
+        }
+
+        function movePaddleTo(targetX) {
+            const halfWidth = paddle.width / 2;
+            let newX = targetX - halfWidth;
+            newX = Math.max(0, Math.min(CANVAS_WIDTH - paddle.width, newX));
+            paddle.x = newX;
+        }
+
+        // ===== 鼠标支持（PC 调试） =====
+        let isMouseDown = false;
+
+        function handleMouseDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = CANVAS_WIDTH / rect.width;
+            const canvasX = (e.clientX - rect.left) * scaleX;
+            isMouseDown = true;
+            movePaddleTo(canvasX);
+        }
+
+        function handleMouseMove(e) {
+            if (!isMouseDown) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = CANVAS_WIDTH / rect.width;
+            const canvasX = (e.clientX - rect.left) * scaleX;
+            movePaddleTo(canvasX);
+        }
+
+        function handleMouseUp(e) {
+            isMouseDown = false;
+        }
+
+        // ===== 注册触屏/鼠标事件 =====
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+        canvas.addEventListener('touchcancel', handleTouchCancel, { passive: false });
+
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('mouseleave', handleMouseUp);
+
+        // ===== 键盘支持（调试用） =====
+        let rightPressed = false;
+        let leftPressed = false;
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'ArrowRight' || e.key === 'Right') {
+                rightPressed = true;
+                e.preventDefault();
+            } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
+                leftPressed = true;
+                e.preventDefault();
+            } else if (e.key === ' ' || e.key === 'Space') {
+                e.preventDefault();
+                togglePause();
+            } else if (e.key === 'r' || e.key === 'R') {
+                resetGame();
+            }
+        });
+
+        document.addEventListener('keyup', e => {
+            if (e.key === 'ArrowRight' || e.key === 'Right') {
+                rightPressed = false;
+                e.preventDefault();
+            } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
+                leftPressed = false;
+                e.preventDefault();
+            }
+        });
+
+        // ============================================================
+        //  游戏逻辑（与之前相同）
+        // ============================================================
+
         function initBricks() {
             bricks = [];
             const colors = ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db'];
@@ -268,14 +412,13 @@
             }
         }
 
-        // ===== 重置游戏 =====
         function resetGame() {
-            paddle.x = (canvas.width - PADDLE_WIDTH) / 2;
+            paddle.x = (CANVAS_WIDTH - PADDLE_WIDTH) / 2;
             paddle.width = PADDLE_WIDTH;
             paddle.targetWidth = PADDLE_WIDTH;
 
-            mainBall.x = canvas.width / 2;
-            mainBall.y = canvas.height - 50;
+            mainBall.x = CANVAS_WIDTH / 2;
+            mainBall.y = CANVAS_HEIGHT - 50;
             mainBall.dx = 3.5 * (Math.random() > 0.5 ? 1 : -1);
             mainBall.dy = -3.5;
             mainBall.radius = BALL_RADIUS;
@@ -307,7 +450,6 @@
             }
         }
 
-        // ===== 暂停 =====
         function togglePause() {
             if (gameOver) return;
             isPaused = !isPaused;
@@ -324,7 +466,6 @@
             }
         }
 
-        // ===== 生成道具 =====
         function spawnPowerup(x, y, type) {
             powerups.push({
                 x: x + BRICK_WIDTH / 2 - POWERUP_SIZE / 2,
@@ -337,7 +478,6 @@
             });
         }
 
-        // ===== 应用道具 =====
         function applyPowerup(type) {
             if (powerupTimers[type]) {
                 clearTimeout(powerupTimers[type]);
@@ -356,16 +496,16 @@
                 case 'WIDE_PADDLE':
                     paddle.targetWidth = PADDLE_WIDTH * 1.6;
                     paddle.width = paddle.targetWidth;
-                    if (paddle.x + paddle.width > canvas.width) {
-                        paddle.x = canvas.width - paddle.width;
+                    if (paddle.x + paddle.width > CANVAS_WIDTH) {
+                        paddle.x = CANVAS_WIDTH - paddle.width;
                     }
                     powerupDisplay.textContent = `${emoji} ${label} ${duration/1000}s`;
                     powerupDisplay.style.color = POWERUP_COLORS[type];
                     powerupTimers[type] = setTimeout(() => {
                         paddle.targetWidth = PADDLE_WIDTH;
                         paddle.width = PADDLE_WIDTH;
-                        if (paddle.x + paddle.width > canvas.width) {
-                            paddle.x = canvas.width - paddle.width;
+                        if (paddle.x + paddle.width > CANVAS_WIDTH) {
+                            paddle.x = CANVAS_WIDTH - paddle.width;
                         }
                         powerupDisplay.textContent = '✨ 道具: 无';
                         powerupDisplay.style.color = '#aaa';
@@ -471,7 +611,6 @@
             }
         }
 
-        // ===== 碰撞检测 =====
         function collisionDetection() {
             const allBalls = [mainBall, ...balls];
             const allBallsCopy = [...allBalls];
@@ -545,7 +684,6 @@
             }
         }
 
-        // ===== 更新道具 =====
         function updatePowerups() {
             for (let i = powerups.length - 1; i >= 0; i--) {
                 const p = powerups[i];
@@ -560,15 +698,14 @@
                     continue;
                 }
 
-                if (p.y > canvas.height) {
+                if (p.y > CANVAS_HEIGHT) {
                     powerups.splice(i, 1);
                 }
             }
         }
 
-        // ===== 绘制 =====
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
             // --- 砖块 ---
             for (let c = 0; c < BRICK_COLS; c++) {
@@ -596,30 +733,25 @@
                         ctx.font = '14px Arial';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
-                        // 显示道具对应的 emoji 在砖块上
                         const emoji = POWERUP_EMOJIS[brick.powerupType] || '❓';
                         ctx.fillText(emoji, bx + BRICK_WIDTH / 2, by + BRICK_HEIGHT / 2 + 1);
                     }
                 }
             }
 
-            // --- 道具（掉落物）---
+            // --- 道具 ---
             for (const p of powerups) {
-                // 发光外圈
                 ctx.shadowBlur = 25;
                 ctx.shadowColor = p.color + '99';
-                // 背景圆
                 ctx.beginPath();
                 ctx.arc(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, 0, Math.PI * 2);
                 ctx.fillStyle = p.color + 'dd';
                 ctx.fill();
                 ctx.shadowBlur = 0;
-                // 白色内圈
                 ctx.beginPath();
                 ctx.arc(p.x + p.width / 2, p.y + p.height / 2, p.width / 2 - 3, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255,255,255,0.2)';
                 ctx.fill();
-                // Emoji 图标
                 ctx.font = '16px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -675,46 +807,57 @@
             // --- 暂停遮罩 ---
             if (isPaused && !gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 32px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('⏸ 暂停中', canvas.width / 2, canvas.height / 2);
+                ctx.fillText('⏸ 暂停中', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
                 ctx.font = '16px Arial';
                 ctx.fillStyle = '#aaa';
-                ctx.fillText('点击「继续」恢复游戏', canvas.width / 2, canvas.height / 2 + 48);
+                ctx.fillText('点击「继续」恢复游戏', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 48);
             }
 
             // --- 游戏结束遮罩 ---
             if (gameOver) {
                 ctx.fillStyle = 'rgba(0,0,0,0.65)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                 ctx.fillStyle = '#e94560';
                 ctx.font = 'bold 34px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 const isWin = score === BRICK_ROWS * BRICK_COLS;
-                ctx.fillText(isWin ? '🎉 恭喜通关！' : '💔 游戏结束', canvas.width / 2, canvas.height / 2 - 12);
+                ctx.fillText(isWin ? '🎉 恭喜通关！' : '💔 游戏结束', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 12);
                 ctx.fillStyle = '#ccc';
                 ctx.font = '18px Arial';
-                ctx.fillText('得分: ' + score + ' 分', canvas.width / 2, canvas.height / 2 + 44);
+                ctx.fillText('得分: ' + score + ' 分', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 44);
                 ctx.fillStyle = '#888';
                 ctx.font = '15px Arial';
-                ctx.fillText('点击「重新开始」再来一局', canvas.width / 2, canvas.height / 2 + 84);
+                ctx.fillText('点击「重新开始」再来一局', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 84);
             }
         }
 
-        // ===== 更新物理 =====
         function update() {
             if (isPaused || gameOver) return;
 
+            // 键盘控制（仅在非触摸时有效）
+            if (!isTouching && !isMouseDown) {
+                if (rightPressed && paddle.x < CANVAS_WIDTH - paddle.width) {
+                    paddle.x += paddle.dx;
+                }
+                if (leftPressed && paddle.x > 0) {
+                    paddle.x -= paddle.dx;
+                }
+            }
+
+            // 挡板宽度平滑
             if (Math.abs(paddle.width - paddle.targetWidth) > 0.5) {
                 paddle.width += (paddle.targetWidth - paddle.width) * 0.15;
             } else {
                 paddle.width = paddle.targetWidth;
             }
 
+            // 球半径平滑
             if (Math.abs(mainBall.radius - mainBall.targetRadius) > 0.2) {
                 mainBall.radius += (mainBall.targetRadius - mainBall.radius) * 0.15;
             }
@@ -724,108 +867,15 @@
                 }
             }
 
-            if (rightPressed && paddle.x < canvas.width - paddle.width) {
-                paddle.x += paddle.dx;
-            }
-            if (leftPressed && paddle.x > 0) {
-                paddle.x -= paddle.dx;
-            }
-
             const allBalls = [mainBall, ...balls];
             for (let i = allBalls.length - 1; i >= 0; i--) {
                 const b = allBalls[i];
                 b.x += b.dx;
                 b.y += b.dy;
 
-                if (b.x + b.radius > canvas.width || b.x - b.radius < 0) b.dx = -b.dx;
+                if (b.x + b.radius > CANVAS_WIDTH || b.x - b.radius < 0) b.dx = -b.dx;
                 if (b.y - b.radius < 0) b.dy = -b.dy;
 
                 if (b.dy > 0 &&
                     b.y + b.radius > paddle.y &&
-                    b.y + b.radius < paddle.y + paddle.height + 4 &&
-                    b.x > paddle.x && b.x < paddle.x + paddle.width) {
-                    const hitPos = (b.x - paddle.x) / paddle.width;
-                    b.dx = (hitPos - 0.5) * 7;
-                    if (Math.abs(b.dx) < 1.2) b.dx = 1.2 * (b.dx > 0 ? 1 : -1);
-                    b.dy = -Math.abs(b.dy) - 0.2;
-                    const maxSpeed = 6.5;
-                    const currentSpeed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
-                    if (currentSpeed > maxSpeed) {
-                        b.dx = (b.dx / currentSpeed) * maxSpeed;
-                        b.dy = (b.dy / currentSpeed) * maxSpeed;
-                    }
-                }
-
-                if (b.y + b.radius > canvas.height) {
-                    if (b === mainBall) {
-                        gameOver = true;
-                        statusDisplay.textContent = '💔 游戏结束';
-                        statusDisplay.style.color = '#e94560';
-                        pauseBtn.textContent = '⏸ 暂停';
-                        pauseBtn.classList.remove('paused');
-                        if (animationId) {
-                            cancelAnimationFrame(animationId);
-                            animationId = null;
-                        }
-                        return;
-                    } else {
-                        balls.splice(balls.indexOf(b), 1);
-                        continue;
-                    }
-                }
-            }
-
-            collisionDetection();
-            updatePowerups();
-        }
-
-        // ===== 游戏循环 =====
-        function gameLoop() {
-            update();
-            draw();
-            animationId = requestAnimationFrame(gameLoop);
-        }
-
-        // ===== 键盘事件 =====
-        document.addEventListener('keydown', e => {
-            if (e.key === 'ArrowRight' || e.key === 'Right') {
-                rightPressed = true;
-                e.preventDefault();
-            } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
-                leftPressed = true;
-                e.preventDefault();
-            } else if (e.key === ' ' || e.key === 'Space') {
-                e.preventDefault();
-                togglePause();
-            } else if (e.key === 'r' || e.key === 'R') {
-                resetGame();
-            }
-        });
-
-        document.addEventListener('keyup', e => {
-            if (e.key === 'ArrowRight' || e.key === 'Right') {
-                rightPressed = false;
-                e.preventDefault();
-            } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
-                leftPressed = false;
-                e.preventDefault();
-            }
-        });
-
-        // ===== 按钮事件 =====
-        pauseBtn.addEventListener('click', togglePause);
-        resetBtn.addEventListener('click', resetGame);
-
-        // ===== 窗口失焦暂停 =====
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && !isPaused && !gameOver) {
-                togglePause();
-            }
-        });
-
-        // ===== 启动 =====
-        initBricks();
-        gameLoop();
-    </script>
-</body>
-</html>
+                    b.y + b.radius < paddle
