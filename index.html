@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>打砖块 - 触屏版</title>
+    <title>打砖块 - 10关挑战</title>
     <style>
         * {
             margin: 0;
@@ -39,14 +39,19 @@
             align-items: center;
             margin-bottom: 10px;
             color: #eee;
-            font-size: 14px;
+            font-size: 13px;
             flex-wrap: wrap;
             gap: 4px;
         }
         .header .score-label span {
             color: #e94560;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 17px;
+        }
+        .header .level-label {
+            color: #f5a623;
+            font-weight: bold;
+            font-size: 16px;
         }
         .header .status {
             color: #f5a623;
@@ -142,12 +147,48 @@
             height: 12px;
             border-radius: 50%;
         }
+        .level-progress {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 8px;
+            padding: 4px 0;
+        }
+        .level-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #555;
+            transition: all 0.3s ease;
+            background: #1a1a2e;
+        }
+        .level-dot.active {
+            border-color: #f5a623;
+            color: #f5a623;
+            background: #2a2a4e;
+            box-shadow: 0 0 15px rgba(245, 166, 35, 0.3);
+        }
+        .level-dot.completed {
+            border-color: #6ab04c;
+            color: #6ab04c;
+            background: #1a3a2e;
+        }
+        .level-dot.locked {
+            opacity: 0.3;
+        }
         @media (max-width: 420px) {
             .game-wrapper { padding: 10px; margin: 5px; }
-            .header { font-size: 12px; }
-            .header .score-label span { font-size: 16px; }
+            .header { font-size: 11px; }
+            .header .score-label span { font-size: 15px; }
             .controls button { padding: 8px 16px; font-size: 13px; min-height: 40px; }
             .legend { font-size: 10px; gap: 8px; }
+            .level-dot { width: 18px; height: 18px; font-size: 8px; }
         }
         @media (min-width: 600px) {
             .game-wrapper { padding: 25px 30px 30px; }
@@ -161,11 +202,14 @@
     <div class="game-wrapper">
         <div class="header">
             <div class="score-label">🏆 <span id="score">0</span></div>
+            <div class="level-label" id="levelDisplay">🏁 第 1 关</div>
             <div class="powerup-indicator" id="powerupDisplay">✨ 道具: 无</div>
             <div class="status" id="statusDisplay">▶ 运行中</div>
         </div>
 
         <canvas id="game" width="600" height="400"></canvas>
+
+        <div class="level-progress" id="levelProgress"></div>
 
         <div class="controls">
             <button class="btn-pause" id="pauseBtn">⏸ 暂停</button>
@@ -173,7 +217,7 @@
         </div>
 
         <div class="touch-hint">
-            <span>👆 在画面上滑动控制挡板 &nbsp;|&nbsp; 点击按钮操作</span>
+            <span>👆 滑动控制挡板 &nbsp;|&nbsp; 清空砖块进入下一关</span>
         </div>
 
         <div class="legend">
@@ -190,10 +234,12 @@
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         const scoreSpan = document.getElementById('score');
+        const levelDisplay = document.getElementById('levelDisplay');
         const statusDisplay = document.getElementById('statusDisplay');
         const powerupDisplay = document.getElementById('powerupDisplay');
         const pauseBtn = document.getElementById('pauseBtn');
         const resetBtn = document.getElementById('resetBtn');
+        const levelProgress = document.getElementById('levelProgress');
 
         // ===== 固定画布尺寸 =====
         const CW = 600;
@@ -203,46 +249,12 @@
         const PADDLE_WIDTH = 80;
         const PADDLE_HEIGHT = 12;
         const BALL_RADIUS = 8;
-        const BRICK_ROWS = 5;
-        const BRICK_COLS = 8;
-        const BRICK_WIDTH = 62;
-        const BRICK_HEIGHT = 18;
         const BRICK_PADDING = 6;
         const BRICK_OFFSET_TOP = 30;
         const BRICK_OFFSET_LEFT = 20;
         const POWERUP_SIZE = 18;
         const POWERUP_SPEED = 1.8;
-
-        // ===== 状态 =====
-        let score = 0;
-        let isPaused = false;
-        let gameOver = false;
-        let animationId = null;
-
-        // ===== 游戏对象 =====
-        const paddle = {
-            x: (CW - PADDLE_WIDTH) / 2,
-            y: CH - 30,
-            width: PADDLE_WIDTH,
-            height: PADDLE_HEIGHT,
-            dx: 6,
-            targetWidth: PADDLE_WIDTH
-        };
-
-        const mainBall = {
-            x: CW / 2,
-            y: CH - 50,
-            dx: 3.5,
-            dy: -3.5,
-            radius: BALL_RADIUS,
-            targetRadius: BALL_RADIUS,
-            isFire: false
-        };
-
-        let balls = [];
-        let bricks = [];
-        let powerups = [];
-        let powerupTimers = {};
+        const TOTAL_LEVELS = 10;
 
         // ===== 道具配置 =====
         const POWERUP_TYPES = {
@@ -269,52 +281,233 @@
             'SLOW_BALL': '🐌'
         };
 
+        // ===== 状态 =====
+        let score = 0;
+        let currentLevel = 0;
+        let isPaused = false;
+        let gameOver = false;
+        let animationId = null;
+        let levelCompleted = false;
+        let totalBricks = 0;
+
+        // ===== 游戏对象 =====
+        const paddle = {
+            x: (CW - PADDLE_WIDTH) / 2,
+            y: CH - 30,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            dx: 6,
+            targetWidth: PADDLE_WIDTH
+        };
+
+        const mainBall = {
+            x: CW / 2,
+            y: CH - 50,
+            dx: 3.5,
+            dy: -3.5,
+            radius: BALL_RADIUS,
+            targetRadius: BALL_RADIUS,
+            isFire: false
+        };
+
+        let balls = [];
+        let bricks = [];
+        let powerups = [];
+        let powerupTimers = {};
+
         // ============================================================
-        //  🖐️ 触屏控制（修复版）
+        //  🏗️ 关卡生成器（10关）
+        // ============================================================
+
+        function getLevelConfig(level) {
+            // 基础配置
+            const configs = [
+                // 第1关：简单 5行x6列，速度慢
+                { rows: 5, cols: 6, speed: 3.0, dropRate: 0.15, powerupCount: 3, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db'] },
+                // 第2关：5行x7列，速度略快
+                { rows: 5, cols: 7, speed: 3.3, dropRate: 0.20, powerupCount: 4, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db'] },
+                // 第3关：6行x7列
+                { rows: 6, cols: 7, speed: 3.6, dropRate: 0.25, powerupCount: 5, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6'] },
+                // 第4关：6行x8列
+                { rows: 6, cols: 8, speed: 3.9, dropRate: 0.28, powerupCount: 6, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6'] },
+                // 第5关：7行x8列
+                { rows: 7, cols: 8, speed: 4.2, dropRate: 0.30, powerupCount: 7, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6', '#1abc9c'] },
+                // 第6关：7行x9列
+                { rows: 7, cols: 9, speed: 4.5, dropRate: 0.32, powerupCount: 8, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6', '#1abc9c'] },
+                // 第7关：8行x9列
+                { rows: 8, cols: 9, speed: 4.8, dropRate: 0.35, powerupCount: 9, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6', '#1abc9c', '#e67e22'] },
+                // 第8关：8行x10列
+                { rows: 8, cols: 10, speed: 5.1, dropRate: 0.38, powerupCount: 10, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6', '#1abc9c', '#e67e22'] },
+                // 第9关：9行x10列
+                { rows: 9, cols: 10, speed: 5.4, dropRate: 0.40, powerupCount: 11, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6', '#1abc9c', '#e67e22', '#2ecc71'] },
+                // 第10关：10行x10列，最快速度
+                { rows: 10, cols: 10, speed: 5.8, dropRate: 0.45, powerupCount: 12, brickColors: ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db', '#9b59b6', '#1abc9c', '#e67e22', '#2ecc71', '#e74c3c'] }
+            ];
+
+            return configs[Math.min(level, configs.length - 1)];
+        }
+
+        function generateLevel(level) {
+            const config = getLevelConfig(level);
+            const rows = config.rows;
+            const cols = config.cols;
+
+            // 计算砖块尺寸
+            const padding = BRICK_PADDING;
+            const totalPaddingX = (cols + 1) * padding;
+            const brickWidth = (CW - BRICK_OFFSET_LEFT * 2 - totalPaddingX) / cols;
+            const brickHeight = Math.min(18, (CH - BRICK_OFFSET_TOP - 120) / rows);
+
+            bricks = [];
+            const colors = config.brickColors;
+
+            // 确定哪些砖块掉落道具
+            const totalBrickCount = rows * cols;
+            const powerupCount = Math.min(config.powerupCount, Math.floor(totalBrickCount * 0.4));
+            const dropPositions = [];
+            const available = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    available.push({ r, c });
+                }
+            }
+            // 随机打乱并选取
+            for (let i = available.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [available[i], available[j]] = [available[j], available[i]];
+            }
+            for (let i = 0; i < Math.min(powerupCount, available.length); i++) {
+                dropPositions.push(available[i]);
+            }
+
+            for (let r = 0; r < rows; r++) {
+                bricks[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    const hasPowerup = dropPositions.some(p => p.r === r && p.c === c);
+                    let powerupType = null;
+                    if (hasPowerup) {
+                        // 根据关卡级别，高级关卡更容易出好道具
+                        const pool = ['WIDE_PADDLE', 'BIG_BALL', 'MULTI_BALL', 'FIRE_BALL', 'SLOW_BALL'];
+                        // 第5关以后增加火焰和分裂的权重
+                        if (level >= 4) {
+                            pool.push('FIRE_BALL', 'MULTI_BALL');
+                        }
+                        if (level >= 7) {
+                            pool.push('FIRE_BALL', 'MULTI_BALL', 'FIRE_BALL');
+                        }
+                        powerupType = pool[Math.floor(Math.random() * pool.length)];
+                    }
+                    bricks[r][c] = {
+                        x: 0,
+                        y: 0,
+                        status: 1,
+                        color: colors[r % colors.length],
+                        hasPowerup: hasPowerup,
+                        powerupType: powerupType,
+                        // 部分砖块有额外生命值（高级关卡）
+                        hp: (level >= 6 && Math.random() < 0.2) ? 2 : 1,
+                        maxHp: (level >= 6 && Math.random() < 0.2) ? 2 : 1
+                    };
+                }
+            }
+
+            // 更新砖块坐标
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const brick = bricks[r][c];
+                    brick.x = c * (brickWidth + padding) + BRICK_OFFSET_LEFT;
+                    brick.y = r * (brickHeight + padding) + BRICK_OFFSET_TOP;
+                    brick.width = brickWidth;
+                    brick.height = brickHeight;
+                }
+            }
+
+            // 设置球速
+            const speed = config.speed;
+            const currentSpeed = Math.sqrt(mainBall.dx * mainBall.dx + mainBall.dy * mainBall.dy);
+            if (currentSpeed > 0) {
+                const ratio = speed / currentSpeed;
+                mainBall.dx *= ratio;
+                mainBall.dy *= ratio;
+            } else {
+                mainBall.dx = speed * (Math.random() > 0.5 ? 1 : -1);
+                mainBall.dy = -speed;
+            }
+            // 应用速度到所有球
+            balls.forEach(b => {
+                const s = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+                if (s > 0) {
+                    const ratio = speed / s;
+                    b.dx *= ratio;
+                    b.dy *= ratio;
+                }
+            });
+
+            // 重置球位置
+            mainBall.x = CW / 2;
+            mainBall.y = CH - 50;
+            // 清空额外球
+            balls = [];
+            // 清空道具
+            powerups = [];
+            // 清除计时器
+            for (const key in powerupTimers) {
+                clearTimeout(powerupTimers[key]);
+            }
+            powerupTimers = {};
+            // 重置道具状态
+            mainBall.isFire = false;
+            paddle.targetWidth = PADDLE_WIDTH;
+            paddle.width = PADDLE_WIDTH;
+            mainBall.targetRadius = BALL_RADIUS;
+            mainBall.radius = BALL_RADIUS;
+            powerupDisplay.textContent = '✨ 道具: 无';
+            powerupDisplay.style.color = '#aaa';
+
+            // 重置挡板位置
+            paddle.x = (CW - paddle.width) / 2;
+
+            totalBricks = rows * cols;
+            levelCompleted = false;
+
+            updateLevelProgress();
+        }
+
+        // ============================================================
+        //  🖐️ 触屏控制
         // ============================================================
 
         let isTouching = false;
-        let touchId = null; // 用于多点触控，只跟踪第一个触点
+        let touchId = null;
 
-        /**
-         * 获取画布上触摸点的 X 坐标（转换为游戏坐标系 0-600）
-         */
         function getCanvasX(clientX) {
             const rect = canvas.getBoundingClientRect();
-            // 计算实际显示区域与逻辑尺寸的比例
             const scaleX = CW / rect.width;
             let x = (clientX - rect.left) * scaleX;
-            // 边界裁剪，防止超出
             return Math.max(0, Math.min(CW, x));
         }
 
-        /**
-         * 移动挡板到指定 X 位置（触摸点或鼠标位置）
-         */
         function movePaddleTo(targetX) {
-            if (gameOver || isPaused) return;
+            if (gameOver || isPaused || levelCompleted) return;
             const halfWidth = paddle.width / 2;
             let newX = targetX - halfWidth;
             newX = Math.max(0, Math.min(CW - paddle.width, newX));
             paddle.x = newX;
         }
 
-        // ----- 触屏事件 -----
         function onTouchStart(e) {
             e.preventDefault();
-            if (gameOver || isPaused) return;
+            if (gameOver || isPaused || levelCompleted) return;
             const touch = e.touches[0];
             if (!touch) return;
             touchId = touch.identifier;
             isTouching = true;
-            const canvasX = getCanvasX(touch.clientX);
-            movePaddleTo(canvasX);
+            movePaddleTo(getCanvasX(touch.clientX));
         }
 
         function onTouchMove(e) {
             e.preventDefault();
             if (!isTouching) return;
-            // 找到我们正在跟踪的那个触点
             let touch = null;
             for (let i = 0; i < e.touches.length; i++) {
                 if (e.touches[i].identifier === touchId) {
@@ -322,19 +515,16 @@
                     break;
                 }
             }
-            // 如果没找到（比如被其他手指替代），就用第一个
             if (!touch) {
                 touch = e.touches[0];
                 touchId = touch ? touch.identifier : null;
             }
             if (!touch) return;
-            const canvasX = getCanvasX(touch.clientX);
-            movePaddleTo(canvasX);
+            movePaddleTo(getCanvasX(touch.clientX));
         }
 
         function onTouchEnd(e) {
             e.preventDefault();
-            // 检查我们跟踪的手指是否还在屏幕上
             let stillThere = false;
             for (let i = 0; i < e.touches.length; i++) {
                 if (e.touches[i].identifier === touchId) {
@@ -354,52 +544,43 @@
             touchId = null;
         }
 
-        // ----- 鼠标支持（PC 调试，与触屏不冲突）-----
+        // ===== 鼠标支持 =====
         let isMouseDown = false;
 
         function onMouseDown(e) {
-            if (gameOver || isPaused) return;
+            if (gameOver || isPaused || levelCompleted) return;
             isMouseDown = true;
             const rect = canvas.getBoundingClientRect();
             const scaleX = CW / rect.width;
-            const canvasX = (e.clientX - rect.left) * scaleX;
-            movePaddleTo(Math.max(0, Math.min(CW, canvasX)));
+            movePaddleTo((e.clientX - rect.left) * scaleX);
         }
 
         function onMouseMove(e) {
             if (!isMouseDown) return;
             const rect = canvas.getBoundingClientRect();
             const scaleX = CW / rect.width;
-            const canvasX = (e.clientX - rect.left) * scaleX;
-            movePaddleTo(Math.max(0, Math.min(CW, canvasX)));
+            movePaddleTo((e.clientX - rect.left) * scaleX);
         }
 
-        function onMouseUp(e) {
-            isMouseDown = false;
-        }
+        function onMouseUp(e) { isMouseDown = false; }
 
-        function onMouseLeave(e) {
-            isMouseDown = false;
-        }
+        function onMouseLeave(e) { isMouseDown = false; }
 
         // ===== 注册事件 =====
-        // 触屏
         canvas.addEventListener('touchstart', onTouchStart, { passive: false });
         canvas.addEventListener('touchmove', onTouchMove, { passive: false });
         canvas.addEventListener('touchend', onTouchEnd, { passive: false });
         canvas.addEventListener('touchcancel', onTouchCancel, { passive: false });
 
-        // 鼠标
         canvas.addEventListener('mousedown', onMouseDown);
         canvas.addEventListener('mousemove', onMouseMove);
         canvas.addEventListener('mouseup', onMouseUp);
         canvas.addEventListener('mouseleave', onMouseLeave);
 
-        // 阻止页面滚动/缩放
         document.addEventListener('gesturestart', (e) => e.preventDefault());
         document.addEventListener('gesturechange', (e) => e.preventDefault());
 
-        // ===== 键盘支持（仅调试） =====
+        // ===== 键盘支持 =====
         let rightPressed = false;
         let leftPressed = false;
 
@@ -431,7 +612,6 @@
         // ===== 按钮事件 =====
         pauseBtn.addEventListener('click', togglePause);
         resetBtn.addEventListener('click', resetGame);
-        // 防止按钮点击时触发画布事件
         pauseBtn.addEventListener('touchstart', (e) => e.stopPropagation());
         resetBtn.addEventListener('touchstart', (e) => e.stopPropagation());
 
@@ -439,74 +619,35 @@
         //  游戏逻辑
         // ============================================================
 
-        function initBricks() {
-            bricks = [];
-            const colors = ['#e94560', '#f5a623', '#f7dc6f', '#6ab04c', '#3498db'];
-            const dropCount = 6 + Math.floor(Math.random() * 3);
-            const dropPositions = [];
-            for (let i = 0; i < dropCount; i++) {
-                dropPositions.push({
-                    c: Math.floor(Math.random() * BRICK_COLS),
-                    r: Math.floor(Math.random() * BRICK_ROWS)
-                });
-            }
-
-            for (let c = 0; c < BRICK_COLS; c++) {
-                bricks[c] = [];
-                for (let r = 0; r < BRICK_ROWS; r++) {
-                    const hasPowerup = dropPositions.some(p => p.c === c && p.r === r);
-                    bricks[c][r] = {
-                        x: 0,
-                        y: 0,
-                        status: 1,
-                        color: colors[r % colors.length],
-                        hasPowerup: hasPowerup,
-                        powerupType: hasPowerup ? POWERUP_KEYS[Math.floor(Math.random() * POWERUP_KEYS.length)] : null
-                    };
-                }
-            }
-        }
-
         function resetGame() {
-            // 重置挡板
-            paddle.x = (CW - PADDLE_WIDTH) / 2;
+            currentLevel = 0;
+            score = 0;
+            scoreSpan.textContent = '0';
+            gameOver = false;
+            isPaused = false;
+            levelCompleted = false;
+            pauseBtn.textContent = '⏸ 暂停';
+            pauseBtn.classList.remove('paused');
+            statusDisplay.textContent = '▶ 运行中';
+            statusDisplay.style.color = '#f5a623';
+
             paddle.width = PADDLE_WIDTH;
             paddle.targetWidth = PADDLE_WIDTH;
+            paddle.x = (CW - PADDLE_WIDTH) / 2;
 
-            // 重置主球
-            mainBall.x = CW / 2;
-            mainBall.y = CH - 50;
-            mainBall.dx = 3.5 * (Math.random() > 0.5 ? 1 : -1);
-            mainBall.dy = -3.5;
             mainBall.radius = BALL_RADIUS;
             mainBall.targetRadius = BALL_RADIUS;
             mainBall.isFire = false;
-
             balls = [];
             powerups = [];
-            // 清除所有计时器
             for (const key in powerupTimers) {
                 clearTimeout(powerupTimers[key]);
             }
             powerupTimers = {};
 
-            initBricks();
-
-            score = 0;
-            scoreSpan.textContent = '0';
-            gameOver = false;
-            isPaused = false;
-            pauseBtn.textContent = '⏸ 暂停';
-            pauseBtn.classList.remove('paused');
-            statusDisplay.textContent = '▶ 运行中';
-            statusDisplay.style.color = '#f5a623';
-            powerupDisplay.textContent = '✨ 道具: 无';
-            powerupDisplay.style.color = '#aaa';
-
-            rightPressed = false;
-            leftPressed = false;
-            isTouching = false;
-            isMouseDown = false;
+            generateLevel(currentLevel);
+            updateLevelProgress();
+            updateLevelDisplay();
 
             if (!animationId) {
                 gameLoop();
@@ -514,7 +655,7 @@
         }
 
         function togglePause() {
-            if (gameOver) return;
+            if (gameOver || levelCompleted) return;
             isPaused = !isPaused;
             if (isPaused) {
                 pauseBtn.textContent = '▶ 继续';
@@ -529,6 +670,62 @@
             }
         }
 
+        function goToNextLevel() {
+            if (currentLevel >= TOTAL_LEVELS - 1) {
+                // 通关！
+                gameOver = true;
+                statusDisplay.textContent = '🎉 全部通关！';
+                statusDisplay.style.color = '#f7dc6f';
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                setTimeout(() => alert('🎉🎉 恭喜你通关全部10关！太厉害了！ 🎉🎉'), 100);
+                return;
+            }
+
+            currentLevel++;
+            levelCompleted = false;
+            generateLevel(currentLevel);
+            updateLevelDisplay();
+            updateLevelProgress();
+            statusDisplay.textContent = `▶ 第 ${currentLevel + 1} 关`;
+            statusDisplay.style.color = '#f5a623';
+
+            // 重置球的位置
+            mainBall.x = CW / 2;
+            mainBall.y = CH - 50;
+            balls = [];
+            paddle.x = (CW - paddle.width) / 2;
+
+            // 恢复游戏循环
+            if (!animationId) {
+                gameLoop();
+            }
+        }
+
+        function updateLevelDisplay() {
+            levelDisplay.textContent = `🏁 第 ${currentLevel + 1} 关`;
+        }
+
+        function updateLevelProgress() {
+            levelProgress.innerHTML = '';
+            for (let i = 0; i < TOTAL_LEVELS; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'level-dot';
+                dot.textContent = i + 1;
+                if (i === currentLevel) {
+                    dot.classList.add('active');
+                } else if (i < currentLevel) {
+                    dot.classList.add('completed');
+                } else {
+                    dot.classList.add('locked');
+                }
+                levelProgress.appendChild(dot);
+            }
+        }
+
+        // ===== 道具系统 =====
         function spawnPowerup(x, y, type) {
             powerups.push({
                 x: x + BRICK_WIDTH / 2 - POWERUP_SIZE / 2,
@@ -559,23 +756,18 @@
                 case 'WIDE_PADDLE':
                     paddle.targetWidth = PADDLE_WIDTH * 1.6;
                     paddle.width = paddle.targetWidth;
-                    if (paddle.x + paddle.width > CW) {
-                        paddle.x = CW - paddle.width;
-                    }
+                    if (paddle.x + paddle.width > CW) paddle.x = CW - paddle.width;
                     powerupDisplay.textContent = `${emoji} ${label} ${duration/1000}s`;
                     powerupDisplay.style.color = POWERUP_COLORS[type];
                     powerupTimers[type] = setTimeout(() => {
                         paddle.targetWidth = PADDLE_WIDTH;
                         paddle.width = PADDLE_WIDTH;
-                        if (paddle.x + paddle.width > CW) {
-                            paddle.x = CW - paddle.width;
-                        }
+                        if (paddle.x + paddle.width > CW) paddle.x = CW - paddle.width;
                         powerupDisplay.textContent = '✨ 道具: 无';
                         powerupDisplay.style.color = '#aaa';
                         delete powerupTimers[type];
                     }, duration);
                     break;
-
                 case 'BIG_BALL':
                     mainBall.targetRadius = BALL_RADIUS * 1.8;
                     mainBall.radius = mainBall.targetRadius;
@@ -593,7 +785,6 @@
                         delete powerupTimers[type];
                     }, duration);
                     break;
-
                 case 'MULTI_BALL':
                     const newBalls = [];
                     const allBalls = [mainBall, ...balls];
@@ -602,7 +793,7 @@
                         for (let j = 0; j < 2; j++) {
                             const angle = (j === 0 ? -0.4 : 0.4);
                             const speed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
-                            const newBall = {
+                            const nb = {
                                 x: b.x + (j === 0 ? -15 : 15),
                                 y: b.y,
                                 dx: b.dx * Math.cos(angle) - b.dy * Math.sin(angle),
@@ -611,18 +802,14 @@
                                 targetRadius: b.targetRadius || BALL_RADIUS,
                                 isFire: b.isFire || false
                             };
-                            const newSpeed = Math.sqrt(newBall.dx * newBall.dx + newBall.dy * newBall.dy);
-                            if (newSpeed > 0) {
-                                newBall.dx = (newBall.dx / newSpeed) * speed;
-                                newBall.dy = (newBall.dy / newSpeed) * speed;
-                            }
-                            newBalls.push(newBall);
+                            const ns = Math.sqrt(nb.dx * nb.dx + nb.dy * nb.dy);
+                            if (ns > 0) { nb.dx = (nb.dx / ns) * speed;
+                                nb.dy = (nb.dy / ns) * speed; }
+                            newBalls.push(nb);
                         }
                     });
                     balls = [...balls, ...newBalls];
-                    if (balls.length > 8) {
-                        balls = balls.slice(0, 8);
-                    }
+                    if (balls.length > 8) balls = balls.slice(0, 8);
                     powerupDisplay.textContent = `${emoji} ${label} +${newBalls.length}`;
                     powerupDisplay.style.color = POWERUP_COLORS[type];
                     setTimeout(() => {
@@ -632,7 +819,6 @@
                         }
                     }, 1500);
                     break;
-
                 case 'FIRE_BALL':
                     mainBall.isFire = true;
                     balls.forEach(b => b.isFire = true);
@@ -646,7 +832,6 @@
                         delete powerupTimers[type];
                     }, duration);
                     break;
-
                 case 'SLOW_BALL':
                     const slowFactor = 0.55;
                     mainBall.dx *= slowFactor;
@@ -656,344 +841,11 @@
                     powerupDisplay.textContent = `${emoji} ${label} ${duration/1000}s`;
                     powerupDisplay.style.color = POWERUP_COLORS[type];
                     powerupTimers[type] = setTimeout(() => {
-                        const restoreSpeed = (b) => {
-                            const currentSpeed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
-                            if (currentSpeed < 1) {
-                                const scale = 3.5 / (currentSpeed || 1);
+                        const restore = (b) => {
+                            const cs = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+                            if (cs < 1) {
+                                const scale = 3.5 / (cs || 1);
                                 b.dx *= scale;
                                 b.dy *= scale;
                             }
                         };
-                        restoreSpeed(mainBall);
-                        balls.forEach(restoreSpeed);
-                        powerupDisplay.textContent = '✨ 道具: 无';
-                        powerupDisplay.style.color = '#aaa';
-                        delete powerupTimers[type];
-                    }, duration);
-                    break;
-            }
-        }
-
-        function collisionDetection() {
-            const allBalls = [mainBall, ...balls];
-            const allBallsCopy = [...allBalls];
-
-            for (let c = 0; c < BRICK_COLS; c++) {
-                for (let r = 0; r < BRICK_ROWS; r++) {
-                    const brick = bricks[c][r];
-                    if (brick.status === 0) continue;
-
-                    let hit = false;
-                    for (const b of allBallsCopy) {
-                        const closestX = Math.max(brick.x, Math.min(b.x, brick.x + BRICK_WIDTH));
-                        const closestY = Math.max(brick.y, Math.min(b.y, brick.y + BRICK_HEIGHT));
-                        const distX = b.x - closestX;
-                        const distY = b.y - closestY;
-                        const dist = Math.sqrt(distX * distX + distY * distY);
-
-                        if (dist < b.radius) {
-                            if (b.isFire) {
-                                brick.status = 0;
-                                score++;
-                                scoreSpan.textContent = score;
-                                if (brick.hasPowerup && brick.powerupType) {
-                                    spawnPowerup(brick.x, brick.y, brick.powerupType);
-                                }
-                                hit = true;
-                                continue;
-                            }
-
-                            const overlapX = Math.min(b.x - brick.x, brick.x + BRICK_WIDTH - b.x);
-                            const overlapY = Math.min(b.y - brick.y, brick.y + BRICK_HEIGHT - b.y);
-
-                            if (overlapX < overlapY) {
-                                b.dx = -b.dx;
-                            } else {
-                                b.dy = -b.dy;
-                            }
-
-                            brick.status = 0;
-                            score++;
-                            scoreSpan.textContent = score;
-
-                            if (brick.hasPowerup && brick.powerupType) {
-                                spawnPowerup(brick.x, brick.y, brick.powerupType);
-                            }
-                            hit = true;
-                            break;
-                        }
-                    }
-                    if (hit) continue;
-                }
-            }
-
-            let remaining = 0;
-            for (let c = 0; c < BRICK_COLS; c++) {
-                for (let r = 0; r < BRICK_ROWS; r++) {
-                    if (bricks[c][r].status === 1) remaining++;
-                }
-            }
-            if (remaining === 0) {
-                gameOver = true;
-                statusDisplay.textContent = '🎉 恭喜通关！';
-                statusDisplay.style.color = '#6ab04c';
-                pauseBtn.textContent = '⏸ 暂停';
-                pauseBtn.classList.remove('paused');
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
-                setTimeout(() => alert('🎉 恭喜通关！点击「重新开始」再来一局'), 100);
-            }
-        }
-
-        function updatePowerups() {
-            for (let i = powerups.length - 1; i >= 0; i--) {
-                const p = powerups[i];
-                p.y += POWERUP_SPEED;
-
-                if (p.y + p.height > paddle.y &&
-                    p.y < paddle.y + paddle.height &&
-                    p.x + p.width > paddle.x &&
-                    p.x < paddle.x + paddle.width) {
-                    applyPowerup(p.type);
-                    powerups.splice(i, 1);
-                    continue;
-                }
-
-                if (p.y > CH) {
-                    powerups.splice(i, 1);
-                }
-            }
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, CW, CH);
-
-            // --- 砖块 ---
-            for (let c = 0; c < BRICK_COLS; c++) {
-                for (let r = 0; r < BRICK_ROWS; r++) {
-                    const brick = bricks[c][r];
-                    if (brick.status === 0) continue;
-                    const bx = c * (BRICK_WIDTH + BRICK_PADDING) + BRICK_OFFSET_LEFT;
-                    const by = r * (BRICK_HEIGHT + BRICK_PADDING) + BRICK_OFFSET_TOP;
-                    brick.x = bx;
-                    brick.y = by;
-
-                    ctx.beginPath();
-                    ctx.rect(bx, by, BRICK_WIDTH, BRICK_HEIGHT);
-                    ctx.fillStyle = brick.color;
-                    ctx.fill();
-                    ctx.shadowBlur = 4;
-                    ctx.shadowColor = 'rgba(255,255,255,0.1)';
-                    ctx.strokeStyle = '#0f1a30';
-                    ctx.lineWidth = 1.5;
-                    ctx.stroke();
-                    ctx.shadowBlur = 0;
-
-                    if (brick.hasPowerup) {
-                        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                        ctx.font = '14px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        const emoji = POWERUP_EMOJIS[brick.powerupType] || '❓';
-                        ctx.fillText(emoji, bx + BRICK_WIDTH / 2, by + BRICK_HEIGHT / 2 + 1);
-                    }
-                }
-            }
-
-            // --- 道具 ---
-            for (const p of powerups) {
-                ctx.shadowBlur = 25;
-                ctx.shadowColor = p.color + '99';
-                ctx.beginPath();
-                ctx.arc(p.x + p.width / 2, p.y + p.height / 2, p.width / 2, 0, Math.PI * 2);
-                ctx.fillStyle = p.color + 'dd';
-                ctx.fill();
-                ctx.shadowBlur = 0;
-                ctx.beginPath();
-                ctx.arc(p.x + p.width / 2, p.y + p.height / 2, p.width / 2 - 3, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                ctx.fill();
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#fff';
-                ctx.shadowBlur = 5;
-                ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                ctx.fillText(p.emoji, p.x + p.width / 2, p.y + p.height / 2 + 1);
-                ctx.shadowBlur = 0;
-            }
-
-            // --- 挡板 ---
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = 'rgba(233, 69, 96, 0.4)';
-            ctx.beginPath();
-            ctx.rect(paddle.x, paddle.y, paddle.width, paddle.height);
-            const grad = ctx.createLinearGradient(paddle.x, paddle.y, paddle.x, paddle.y + paddle.height);
-            grad.addColorStop(0, '#f5f5f5');
-            grad.addColorStop(1, '#c8c8c8');
-            ctx.fillStyle = grad;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            // --- 所有球 ---
-            const allBalls = [mainBall, ...balls];
-            for (const b of allBalls) {
-                if (b.isFire) {
-                    ctx.shadowBlur = 45;
-                    ctx.shadowColor = '#e94560';
-                } else {
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = 'rgba(255,255,255,0.2)';
-                }
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-                if (b.isFire) {
-                    const grad2 = ctx.createRadialGradient(b.x - 3, b.y - 3, 2, b.x, b.y, b.radius);
-                    grad2.addColorStop(0, '#fff');
-                    grad2.addColorStop(0.3, '#ff6b6b');
-                    grad2.addColorStop(0.7, '#e94560');
-                    grad2.addColorStop(1, '#c0392b');
-                    ctx.fillStyle = grad2;
-                } else {
-                    const grad2 = ctx.createRadialGradient(b.x - 3, b.y - 3, 2, b.x, b.y, b.radius);
-                    grad2.addColorStop(0, '#ffffff');
-                    grad2.addColorStop(0.6, '#f0f0f0');
-                    grad2.addColorStop(1, '#a0a0a0');
-                    ctx.fillStyle = grad2;
-                }
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-
-            // --- 暂停遮罩 ---
-            if (isPaused && !gameOver) {
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(0, 0, CW, CH);
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 32px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('⏸ 暂停中', CW / 2, CH / 2);
-                ctx.font = '16px Arial';
-                ctx.fillStyle = '#aaa';
-                ctx.fillText('点击「继续」恢复游戏', CW / 2, CH / 2 + 48);
-            }
-
-            // --- 游戏结束遮罩 ---
-            if (gameOver) {
-                ctx.fillStyle = 'rgba(0,0,0,0.65)';
-                ctx.fillRect(0, 0, CW, CH);
-                ctx.fillStyle = '#e94560';
-                ctx.font = 'bold 34px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const isWin = score === BRICK_ROWS * BRICK_COLS;
-                ctx.fillText(isWin ? '🎉 恭喜通关！' : '💔 游戏结束', CW / 2, CH / 2 - 12);
-                ctx.fillStyle = '#ccc';
-                ctx.font = '18px Arial';
-                ctx.fillText('得分: ' + score + ' 分', CW / 2, CH / 2 + 44);
-                ctx.fillStyle = '#888';
-                ctx.font = '15px Arial';
-                ctx.fillText('点击「重新开始」再来一局', CW / 2, CH / 2 + 84);
-            }
-        }
-
-        function update() {
-            if (isPaused || gameOver) return;
-
-            // 键盘控制（仅在非触摸/鼠标拖拽时生效）
-            if (!isTouching && !isMouseDown) {
-                if (rightPressed && paddle.x < CW - paddle.width) {
-                    paddle.x += paddle.dx;
-                }
-                if (leftPressed && paddle.x > 0) {
-                    paddle.x -= paddle.dx;
-                }
-            }
-
-            // 挡板宽度平滑
-            if (Math.abs(paddle.width - paddle.targetWidth) > 0.5) {
-                paddle.width += (paddle.targetWidth - paddle.width) * 0.15;
-            } else {
-                paddle.width = paddle.targetWidth;
-            }
-
-            // 球半径平滑
-            if (Math.abs(mainBall.radius - mainBall.targetRadius) > 0.2) {
-                mainBall.radius += (mainBall.targetRadius - mainBall.radius) * 0.15;
-            }
-            for (const b of balls) {
-                if (Math.abs(b.radius - (b.targetRadius || BALL_RADIUS)) > 0.2) {
-                    b.radius += ((b.targetRadius || BALL_RADIUS) - b.radius) * 0.15;
-                }
-            }
-
-            const allBalls = [mainBall, ...balls];
-            for (let i = allBalls.length - 1; i >= 0; i--) {
-                const b = allBalls[i];
-                b.x += b.dx;
-                b.y += b.dy;
-
-                if (b.x + b.radius > CW || b.x - b.radius < 0) b.dx = -b.dx;
-                if (b.y - b.radius < 0) b.dy = -b.dy;
-
-                if (b.dy > 0 &&
-                    b.y + b.radius > paddle.y &&
-                    b.y + b.radius < paddle.y + paddle.height + 4 &&
-                    b.x > paddle.x && b.x < paddle.x + paddle.width) {
-                    const hitPos = (b.x - paddle.x) / paddle.width;
-                    b.dx = (hitPos - 0.5) * 7;
-                    if (Math.abs(b.dx) < 1.2) b.dx = 1.2 * (b.dx > 0 ? 1 : -1);
-                    b.dy = -Math.abs(b.dy) - 0.2;
-                    const maxSpeed = 6.5;
-                    const currentSpeed = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
-                    if (currentSpeed > maxSpeed) {
-                        b.dx = (b.dx / currentSpeed) * maxSpeed;
-                        b.dy = (b.dy / currentSpeed) * maxSpeed;
-                    }
-                }
-
-                if (b.y + b.radius > CH) {
-                    if (b === mainBall) {
-                        gameOver = true;
-                        statusDisplay.textContent = '💔 游戏结束';
-                        statusDisplay.style.color = '#e94560';
-                        pauseBtn.textContent = '⏸ 暂停';
-                        pauseBtn.classList.remove('paused');
-                        if (animationId) {
-                            cancelAnimationFrame(animationId);
-                            animationId = null;
-                        }
-                        return;
-                    } else {
-                        balls.splice(balls.indexOf(b), 1);
-                        continue;
-                    }
-                }
-            }
-
-            collisionDetection();
-            updatePowerups();
-        }
-
-        function gameLoop() {
-            update();
-            draw();
-            animationId = requestAnimationFrame(gameLoop);
-        }
-
-        // ===== 窗口失焦暂停 =====
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && !isPaused && !gameOver) {
-                togglePause();
-            }
-        });
-
-        // ===== 启动 =====
-        initBricks();
-        gameLoop();
-    </script>
-</body>
-</html>
