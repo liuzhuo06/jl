@@ -55,6 +55,9 @@
                 debugInfo += `Content-Length: ${response.headers.get('content-length') || '未知'}\n`;
                 debugInfo += `\n--- 原始响应内容 ---\n`;
 
+
+                debugInfo += JSON.stringify(response.headers)
+
                 // 先以文本形式读取原始内容
                 const text = await response.text();
                 debugInfo += text || '(空响应)';
