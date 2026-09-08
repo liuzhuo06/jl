@@ -71,7 +71,6 @@ let debugInfo = `状态码: ${response.status} ${response.statusText}\n`;
 
                      resultDiv.textContent = debugInfo;
     
-    return response.json();
   })
   .catch(error => console.error('请求失败:', error));
             } catch (error) {
