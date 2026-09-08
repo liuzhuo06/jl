@@ -45,8 +45,8 @@
                     mode: 'cors'  // 默认就是cors，显式标出
                 });
 
-                const data = await response.json();
-                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+                //const data = await response.json();
+                document.getElementById('result').textContent = JSON.stringify(response, null, 2);
             } catch (error) {
                 document.getElementById('result').textContent = '请求失败: ' + error.message;
             }
