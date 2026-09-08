@@ -60,9 +60,9 @@ let debugInfo = `状态码: ${response.status} ${response.statusText}\n`;
                 debugInfo += `\n--- 原始响应内容 ---\n`;
                      
     // 遍历所有标头
-    response.headers.forEach((value, key) => {
-      debugInfo += `${key}: ${value}\n`;
-    });
+   // response.headers.forEach((value, key) => {
+   //   debugInfo += `${key}: ${value}\n`;
+   // });
     
     // 或者使用entries()
     for (const [key, value] of response.headers.entries()) {
