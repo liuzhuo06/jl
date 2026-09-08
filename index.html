@@ -51,16 +51,25 @@
     
     // 获取所有标头（返回Headers对象）
     const allHeaders = response.headers;
-    
+
+const resultDiv = document.getElementById('result');
+
+let debugInfo = `状态码: ${response.status} ${response.statusText}\n`;
+                debugInfo += `Content-Type: ${response.headers.get('content-type') || '未知'}\n`;
+                debugInfo += `Content-Length: ${response.headers.get('content-length') || '未知'}\n`;
+                debugInfo += `\n--- 原始响应内容 ---\n`;
+                     
     // 遍历所有标头
     response.headers.forEach((value, key) => {
-      console.log(`${key}: ${value}`);
+      debugInfo += `${key}: ${value}`;
     });
     
     // 或者使用entries()
     for (const [key, value] of response.headers.entries()) {
-      console.log(`${key}: ${value}`);
+      debugInfo += `${key}: ${value}`;
     }
+
+                     resultDiv.textContent = debugInfo;
     
     return response.json();
   })
