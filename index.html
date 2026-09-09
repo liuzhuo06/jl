@@ -1,98 +1,73 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>支付宝AI请求示例</title>
-</head>
-<body>
-    <button onclick="callAlipayAPI()">发起请求</button>
-    <!-- <a href="https://render.alipay.com/p/yuyan/180020010001287207/test.html?botId=8e96fa1e7a6947d9a51699053582f837&channel=app&appId=2021003194657253">请求网页</a> -->
-    <pre id="result"></pre>
-
-    <script>
-        async function callAlipayAPI() {
-            const url = 'https://webgw-internet.alipay.com/govbizprodsys/com.alipay.govbizprodsys.common.service.facade.gia.GovIntelligentAssistantFacade/chatInit';
-
-            const headers = {
-                'accept': '*/*',
-                'accept-language': 'zh-CN,zh;q=0.9',
-                'content-type': 'application/json',
-                'origin': 'https://render.alipay.com',
-                //'referer': 'https://render.alipay.com/',
-                'sec-ch-ua': '"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"',
-                'sec-ch-ua-mobile': '?1',
-                'sec-ch-ua-platform': '"Android"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-site',
-                'starpoint-data2': '1.3ba09b8c19f14b538e26125ec5133e3f.NFI2NWpINXVPdzcwMDNJdQ==.1788850302.0075f224bd8883670b77ae877af676a0.LJGBAVXdAQH+5O2OfdVpt07nAnvLDUPFrzJZg3cZdXvg+nEMJdBRgIyBp3oaxXatA4ykop3yWG7feRgBzoyEbvW5Wa+dQLJvQ14MZKvMN3zk72/T/Lo4Utm/Dyx+NWWCqc3Z805i2emuqF63WJKYbQoGzFMrANy5GAZGf8GuHdzJqBl8AJp30ypuBw5K5fIAH3dsZoHqZXk+m4xGtPvoyw==',
-                'user-agent': 'Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Mobile Safari/537.36',
-                'x-webgw-appid': '180020010001265922',
-                'x-webgw-version': '2.0'
-            };
-
-const body = JSON.stringify({
-                appId: "2021003194657253",
-                botId: "8e96fa1e7a6947d9a51699053582f837",
-                channel: "app",
-                openId: "e26d9927a85d81777360760751"
-            });
-            alert(location.href)
-            const options = {
-    method: 'POST',
-    headers: {
-      'x-webgw-appId': '180020010001265922',
-      'x-webgw-version': '2.0',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    referrer: location.href,
-    //'referer': 'https://render.alipay.com/',
-    cache: undefined,
-    credentials: undefined,
-    mode: undefined,
-    redirect: undefined,
-    referrerPolicy: undefined,
-  };
-
-            
-//headers: headers,body: body, mode: 'cors' 
-            try {
-                 fetch(url, options
-                      ).then(response => {
-    // 获取单个标头
-    const contentType = response.headers.get('content-type');
-    const server = response.headers.get('server');
-    const date = response.headers.get('date');
-    
-    // 获取所有标头（返回Headers对象）
-    const allHeaders = response.headers;
-
-const resultDiv = document.getElementById('result');
-
-let debugInfo = `状态码: ${response.status} ${response.statusText}\n`;
-                debugInfo += `Content-Type: ${response.headers.get('content-type') || '未知'}\n`;
-                debugInfo += `Content-Length: ${response.headers.get('content-length') || '未知'}\n`;
-                debugInfo += `\n--- 原始响应内容 ---\n`;
-                     
-    // 遍历所有标头
-   // response.headers.forEach((value, key) => {
-   //   debugInfo += `${key}: ${value}\n`;
-   // });
-    
-    // 或者使用entries()
-    for (const [key, value] of response.headers.entries()) {
-      debugInfo += `${key}: ${value}\n`;
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chatInit fetch 对照测试</title>
+<style>body{font:16px/1.6 sans-serif;max-width:1000px;margin:24px auto;padding:0 16px}button{padding:10px 20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f4f4;padding:16px}textarea{width:100%;height:120px}</style>
+<h2>chatInit · window.fetch 对照测试</h2>
+<p>每次运行发起 3 次 POST。请求头和 body 保持相同，只改变 fetch 配置。不设置浏览器管理的 Origin / Referer 请求头。</p>
+<p>本地 file 页面与线上来源不同：若发生 CORS / Failed to fetch，不能据此判断业务页面也失败；重点比较是否出现 Invalid referrer policy。</p>
+<textarea id="body">{"appId":"2021003194657","botId":"8e96fa1e7a6947d9a51053582f837","channel":"app","openId":"0387e5aac2f9481786435607365"}</textarea>
+<p><button id="run">运行 3 组对照</button></p>
+<pre id="output">等待运行</pre>
+<script>
+var url = 'https://webgw-internet.alipay.com/govbizprodsys/com.alipay.govbizprodsys.common.service.facade.gia.GovIntelligentAssistantFacade/chatInit';
+var output = document.getElementById('output');
+function log(data) {
+  var line = JSON.stringify(data);
+  output.textContent += line + '\n';
+  console.log(line);
+}
+document.getElementById('run').onclick = async function () {
+  var button = this;
+  var body;
+  try { body = JSON.stringify(JSON.parse(document.getElementById('body').value)); }
+  catch (e) { output.textContent = 'body 不是合法 JSON: ' + e.message; return; }
+  button.disabled = true;
+  output.textContent = '';
+  log({ origin: location.origin, protocol: location.protocol, userAgent: navigator.userAgent });
+  var cases = [
+    { name: 'A 最简请求', extra: {} },
+    { name: 'B 仅增加 referrerPolicy: undefined', extra: { referrerPolicy: undefined } },
+    { name: 'C 请求库完整默认配置', extra: {
+      referrer: location.href, cache: undefined, credentials: undefined,
+      mode: undefined, redirect: undefined, referrerPolicy: undefined
+    } }
+  ];
+  try {
+    for (var item of cases) {
+      var options = Object.assign({
+        method: 'POST',
+        headers: {
+          'accept': '*/*',
+          'content-type': 'application/json',
+          'x-webgw-appid': '180020010001265922',
+          'x-webgw-version': '2.0'
+        },
+        body: body
+      }, item.extra);
+      log({ test: item.name, hasReferrerPolicy: Object.prototype.hasOwnProperty.call(options, 'referrerPolicy'),
+        referrerPolicy: String(options.referrerPolicy), valueType: typeof options.referrerPolicy });
+      try {
+        new Request(url, options);
+        log({ test: item.name, requestConstruction: '通过' });
+      } catch (e) {
+        log({ test: item.name, requestConstruction: '失败', error: e.message });
+      }
+      var controller = new AbortController();
+      options.signal = controller.signal;
+      var timer = setTimeout(function () { controller.abort(); }, 15000);
+      try {
+        var response = await window.fetch(url, options);
+        var headers = {};
+        response.headers.forEach(function (v, k) { headers[k] = v; });
+        log({ test: item.name, status: response.status, responseHeaders: headers, response: await response.text() });
+      } catch (e) {
+        log({ test: item.name, fetchError: e.message, errorName: e.name });
+      } finally { clearTimeout(timer); }
     }
-
-                     resultDiv.textContent = debugInfo;
-    
-  })
-  .catch(error => console.error('请求失败:' + error));
-            } catch (error) {
-                document.getElementById('result').textContent = '请求失败: ' + error.message;
-            }
-        }
-    </script>
-</body>
+    log({ done: true });
+  } finally { button.disabled = false; }
+};
+</script>
 </html>
