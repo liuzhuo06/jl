@@ -31,6 +31,13 @@
                 'x-webgw-version': '2.0'
             };
 
+const body = JSON.stringify({
+                appId: "2021003194657253",
+                botId: "8e96fa1e7a6947d9a51699053582f837",
+                channel: "app",
+                openId: "e26d9927a85d81777360760751"
+            });
+            
             const options = {
     method: 'POST',
     headers: {
@@ -47,12 +54,7 @@
     referrerPolicy: undefined,
   };
 
-            const body = JSON.stringify({
-                appId: "2021003194657253",
-                botId: "8e96fa1e7a6947d9a51699053582f837",
-                channel: "app",
-                openId: "e26d9927a85d81777360760751"
-            });
+            
 //headers: headers,body: body, mode: 'cors' 
             try {
                  fetch(url, options
