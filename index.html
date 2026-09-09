@@ -18,7 +18,7 @@
                 'accept-language': 'zh-CN,zh;q=0.9',
                 'content-type': 'application/json',
                 'origin': 'https://render.alipay.com',
-                'referer': 'https://render.alipay.com/',
+                //'referer': 'https://render.alipay.com/',
                 'sec-ch-ua': '"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"',
                 'sec-ch-ua-mobile': '?1',
                 'sec-ch-ua-platform': '"Android"',
@@ -31,20 +31,32 @@
                 'x-webgw-version': '2.0'
             };
 
+            const options = {
+    method: 'POST',
+    headers: {
+      'x-webgw-appId': '180020010001265922',
+      'x-webgw-version': '2.0',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    referrer: location.href,
+    cache: undefined,
+    credentials: undefined,
+    mode: undefined,
+    redirect: undefined,
+    referrerPolicy: undefined,
+  };
+
             const body = JSON.stringify({
                 appId: "2021003194657253",
                 botId: "8e96fa1e7a6947d9a51699053582f837",
                 channel: "app",
                 openId: "e26d9927a85d81777360760751"
             });
-
+//headers: headers,body: body, mode: 'cors' 
             try {
-                 fetch(url, {
-                    method: 'POST',
-                    headers: headers,
-                    body: body,
-                    mode: 'cors'  // 默认就是cors，显式标出
-                }).then(response => {
+                 fetch(url, options
+                      ).then(response => {
     // 获取单个标头
     const contentType = response.headers.get('content-type');
     const server = response.headers.get('server');
