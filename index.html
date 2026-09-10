@@ -65,7 +65,7 @@ document.getElementById('run').onclick = async function () {
         const request = new Request(url, options);
       var headers = {};
         request.headers.forEach(function (v, k) { headers[k] = v; });
-      log({ test: item.name, title: '请求头', requestHeaders: headers, response: await response.text() });
+      log({ test: item.name, title: '请求头', requestHeaders: headers, });
         // log({ test: item.name, requestConstruction: '通过' });
       // } catch (e) {
       //   log({ test: item.name, requestConstruction: '失败', error: e.message });
