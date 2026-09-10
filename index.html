@@ -82,6 +82,7 @@ document.getElementById('run').onclick = async function () {
         
       } finally { 
         log({ test: item.name, op: options });
+        log({ test: item.name, v: '1' });
         // clearTimeout(timer); 
       }
     }
