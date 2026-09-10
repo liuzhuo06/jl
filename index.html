@@ -27,7 +27,6 @@ document.getElementById('run').onclick = async function () {
   output.textContent = '';
   log({ origin: location.origin, protocol: location.protocol, userAgent: navigator.userAgent });
   var cases = [
-    //{ name: 'A 最简请求', extra: {} },
     { name: 'B 仅增加 referrerPolicy: undefined', extra: { referrerPolicy: undefined } },
     { name: 'C 请求库完整默认配置', extra: {
       referrer: location.href, cache: undefined, credentials: undefined,
