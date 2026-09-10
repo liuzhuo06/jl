@@ -55,20 +55,20 @@ document.getElementById('run').onclick = async function () {
         credentials: undefined,
         mode: undefined,
         redirect: undefined,
-        // referrerPolicy: undefined,
+        referrerPolicy: undefined,
       };
       
-      log({ test: item.name, hasReferrerPolicy: Object.prototype.hasOwnProperty.call(options, 'referrerPolicy'),
-        referrerPolicy: String(options.referrerPolicy), valueType: typeof options.referrerPolicy });
-      try {
-        new Request(url, options);
-        log({ test: item.name, requestConstruction: '通过' });
-      } catch (e) {
-        log({ test: item.name, requestConstruction: '失败', error: e.message });
-      }
-      var controller = new AbortController();
-      options.signal = controller.signal;
-      var timer = setTimeout(function () { controller.abort(); }, 15000);
+      // log({ test: item.name, hasReferrerPolicy: Object.prototype.hasOwnProperty.call(options, 'referrerPolicy'),
+      //   referrerPolicy: String(options.referrerPolicy), valueType: typeof options.referrerPolicy });
+      // try {
+      //   new Request(url, options);
+      //   log({ test: item.name, requestConstruction: '通过' });
+      // } catch (e) {
+      //   log({ test: item.name, requestConstruction: '失败', error: e.message });
+      // }
+      // var controller = new AbortController();
+      // options.signal = controller.signal;
+      // var timer = setTimeout(function () { controller.abort(); }, 15000);
       try {
         var response = await window.fetch(url, options);
         var headers = {};
