@@ -76,6 +76,9 @@ document.getElementById('run').onclick = async function () {
         log({ test: item.name, status: response.status, responseHeaders: headers, response: await response.text() });
       } catch (e) {
         log({ test: item.name, fetchError: e.message, errorName: e.name });
+
+        log({ test: item.name, fetchError: e.message, op: options });
+        
       } finally { clearTimeout(timer); }
     }
     log({ done: true });
