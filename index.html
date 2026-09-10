@@ -27,23 +27,37 @@ document.getElementById('run').onclick = async function () {
   output.textContent = '';
   log({ origin: location.origin, protocol: location.protocol, userAgent: navigator.userAgent });
   var cases = [
-    { name: 'C 请求库完整默认配置', extra: {
-      referrer: location.href, cache: undefined, credentials: undefined,
-      mode: undefined, redirect: undefined, referrerPolicy: undefined
-    } }
+    { name: 'A 最简请求', extra: {} },
   ];
   try {
     for (var item of cases) {
-      var options = Object.assign({
+      // var options = Object.assign({
+      //   method: 'POST',
+      //   headers: {
+      //     'accept': '*/*',
+      //     'content-type': 'application/json',
+      //     'x-webgw-appid': '180020010001265922',
+      //     'x-webgw-version': '2.0'
+      //   },
+      //   body: body
+      // }, item.extra);
+
+      const options = {
         method: 'POST',
         headers: {
-          'accept': '*/*',
-          'content-type': 'application/json',
-          'x-webgw-appid': '180020010001265922',
-          'x-webgw-version': '2.0'
+          'x-webgw-appId': '180020010001265922',
+          'x-webgw-version': '2.0',
+          'Content-Type': 'application/json',
         },
-        body: body
-      }, item.extra);
+        body: JSON.stringify(body),
+        referrer: location.href,
+        cache: undefined,
+        credentials: undefined,
+        mode: undefined,
+        redirect: undefined,
+        referrerPolicy: undefined,
+      };
+      
       log({ test: item.name, hasReferrerPolicy: Object.prototype.hasOwnProperty.call(options, 'referrerPolicy'),
         referrerPolicy: String(options.referrerPolicy), valueType: typeof options.referrerPolicy });
       try {
