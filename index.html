@@ -77,9 +77,12 @@ document.getElementById('run').onclick = async function () {
       } catch (e) {
         log({ test: item.name, fetchError: e.message, errorName: e.name });
 
-        log({ test: item.name, fetchError: e.message, op: options });
         
-      } finally { clearTimeout(timer); }
+        
+      } finally { 
+        log({ test: item.name, fetchError: e.message, op: options });
+        // clearTimeout(timer); 
+      }
     }
     log({ done: true });
   } finally { button.disabled = false; }
