@@ -55,7 +55,8 @@ document.getElementById('run').onclick = async function () {
         credentials: undefined,
         mode: undefined,
         redirect: undefined,
-         referrerPolicy: undefined,
+        // referrerPolicy: undefined,
+        referrerPolicy: 'no-referrer',
       };
       
       // log({ test: item.name, hasReferrerPolicy: Object.prototype.hasOwnProperty.call(options, 'referrerPolicy'),
